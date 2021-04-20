@@ -1,0 +1,12 @@
+services:
+    NetJan\ProductServerBundle\Controller\:
+        resource: '../src/Controller/'
+        autoconfigure: true
+        autowire: true
+        tags: ['controller.service_arguments']
+
+    NetJan\ProductServerBundle\Repository\:
+        resource: '../src/Repository/'
+        autoconfigure: true
+        autowire: true
+        tags: ['doctrine.repository_service']

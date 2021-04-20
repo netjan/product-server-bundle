@@ -1,0 +1,41 @@
+{
+    "name": "netjan/product-server-bundle",
+    "type": "symfony-bundle",
+    "description": "REST Product Server",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Jan Cz",
+            "email": "janekcz69@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.2.5",
+        "doctrine/annotations": "^1.12",
+        "doctrine/orm": "^2.8",
+        "doctrine/doctrine-bundle": "^2.3",
+        "friendsofsymfony/rest-bundle": "^3.0",
+		"symfony/form": "^5.2",
+        "symfony/serializer-pack": "^1.0",
+        "symfony/validator": "^5.2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5",
+        "symfony/monolog-bundle": "^3.7"
+    },
+    "autoload": {
+        "psr-4": {
+            "NetJan\\ProductServerBundle\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "NetJan\\ProductServerBundle\\Tests\\": "tests"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "1.x-dev"
+        }
+    }
+}

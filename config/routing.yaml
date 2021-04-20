@@ -1,0 +1,7 @@
+controllers:
+    resource: '../src/Controller/'
+    type: annotation
+    # this is added to the beginning of all imported route URLs
+    # prefix: '/api'
+    # this is added to the beginning of all imported route names
+    name_prefix: 'netjan_'
