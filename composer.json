@@ -15,13 +15,20 @@
         "doctrine/orm": "^2.8",
         "doctrine/doctrine-bundle": "^2.3",
         "friendsofsymfony/rest-bundle": "^3.0",
-		"symfony/form": "^5.2",
+        "symfony/form": "^5.2",
         "symfony/serializer-pack": "^1.0",
         "symfony/validator": "^5.2"
     },
     "require-dev": {
+        "nelmio/alice": "^3.8",
         "phpunit/phpunit": "^9.5",
-        "symfony/monolog-bundle": "^3.7"
+        "symfony/framework-bundle": "^5.2",
+        "symfony/monolog-bundle": "^3.7",
+        "symfony/test-pack": "^1.0"
+    },
+    "config": {
+        "bin-dir": "bin",
+        "sort-packages": true
     },
     "autoload": {
         "psr-4": {

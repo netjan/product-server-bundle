@@ -1,7 +1,7 @@
 bin
 vendor
 
+.phpunit.result.cache
 composer.lock
 tests/phpunit.xml
-tests/temp/*.php
-tests/temp/*.log
+tests/temp

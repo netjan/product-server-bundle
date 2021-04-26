@@ -1,0 +1,6 @@
+#index:
+#    path: /
+#    controller: App\Controller\DefaultController::index
+netjan_product:
+    prefix: '/api'
+    resource: "@NetJanProductServerBundle/config/routing.yaml"
