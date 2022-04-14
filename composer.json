@@ -11,20 +11,21 @@
     ],
     "require": {
         "php": ">=7.2.5",
-        "doctrine/annotations": "^1.12",
-        "doctrine/orm": "^2.8",
-        "doctrine/doctrine-bundle": "^2.3",
+        "doctrine/doctrine-bundle": "^2.4",
+        "doctrine/orm": "^2.10",
         "friendsofsymfony/rest-bundle": "^3.0",
-        "symfony/form": "^5.2",
+        "sensio/framework-extra-bundle": "^6.2",
+        "symfony/form": "^5.0",
         "symfony/serializer-pack": "^1.0",
-        "symfony/validator": "^5.2"
+        "symfony/validator": "^5.0"
     },
     "require-dev": {
-        "nelmio/alice": "^3.8",
+        "nelmio/alice": "^3.9",
         "phpunit/phpunit": "^9.5",
-        "symfony/framework-bundle": "^5.2",
+        "symfony/framework-bundle": "^5.0",
         "symfony/monolog-bundle": "^3.7",
-        "symfony/test-pack": "^1.0"
+        "symfony/test-pack": "^1.0",
+        "symfony/yaml": "^5.0"
     },
     "config": {
         "bin-dir": "bin",

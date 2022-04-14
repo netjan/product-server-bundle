@@ -1,4 +1,7 @@
+.vscode
+
 bin
+var
 vendor
 
 .phpunit.result.cache

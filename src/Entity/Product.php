@@ -2,8 +2,8 @@
 
 namespace NetJan\ProductServerBundle\Entity;
 
-use NetJan\ProductServerBundle\Repository\ProductRepository;
 use Doctrine\ORM\Mapping as ORM;
+use NetJan\ProductServerBundle\Repository\ProductRepository;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**

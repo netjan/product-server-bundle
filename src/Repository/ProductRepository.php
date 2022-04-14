@@ -2,10 +2,13 @@
 
 namespace NetJan\ProductServerBundle\Repository;
 
-use NetJan\ProductServerBundle\Entity\Product;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\ORM\Query\Expr as Expr;
+use Doctrine\ORM\ORMException;
+use Doctrine\ORM\Query\Expr;
 use Doctrine\Persistence\ManagerRegistry;
+use NetJan\ProductServerBundle\Entity\Product;
+use NetJan\ProductServerBundle\Exception as BundleException;
+use NetJan\ProductServerBundle\Filter\ProductFilter;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 
@@ -52,70 +55,59 @@ class ProductRepository extends ServiceEntityRepository implements LoggerAwareIn
         ;
     }
     */
-    public function getList(?array $filters = [])
-    {
-        return $this->queryList($filters)->getQuery()->getResult();
-    }
 
-    public function queryList(?array $filters = [])
+    /**
+     * @return Product[] Returns an array of Product objects
+     */
+    public function list(ProductFilter $filter): array
     {
         $qb = $this->createQueryBuilder('p');
-        // dump($filters);
 
-        if (!isset($filters['stock']) || null === $filters['stock']) {
+        if (null === $filter->stock) {
             $qb->andWhere(new Expr\Andx(
                 'p.amount > :amount'
             ));
             $qb->setParameter('amount', 5);
-        } elseif ($filters['stock']) {
+        } elseif (true === $filter->stock) {
             $qb->andWhere(new Expr\Andx(
                 'p.amount > :amount'
             ));
             $qb->setParameter('amount', 0);
-        } else { // $filters['stock'] == false
+        } else { // false === $filter->stock
             $qb->andWhere(new Expr\Andx(
                 'p.amount = :amount'
             ));
             $qb->setParameter('amount', 0);
         }
 
-        return $qb;
+        return $qb->getQuery()->getResult();
     }
 
-    public function save(Product $product) {
-        $result = [
-            'error' => false,
-            'messages' => [],
-        ];
-
+    public function save(Product $product)
+    {
         try {
             $this->_em->persist($product);
             $this->_em->flush();
-        } catch (\Exception $e) {
-            $result['error'] = true;
-            $result['messages'][] = 'Data saving error!';
+        } catch (ORMException $e) {
             $this->logger->error($e->getMessage());
+            throw new BundleException\ORMException($e);
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            throw new BundleException\RepositoryException($e);
         }
-
-        return $result;
     }
 
     public function remove(Product $product)
     {
-        $result = [
-            'error' => false,
-            'messages' => [],
-        ];
-
         try {
             $this->_em->remove($product);
             $this->_em->flush();
-        } catch (\Exception $e) {
-            $result['error'] = true;
-            $result['messages'][] = 'Data saving error!';
+        } catch (ORMException $e) {
             $this->logger->error($e->getMessage());
+            throw new BundleException\ORMException($e);
+        } catch (\Exception $e) {
+            $this->logger->error($e->getMessage());
+            throw new BundleException\RepositoryException($e);
         }
-
-        return $result;
     }
 }

@@ -2,17 +2,20 @@
 
 namespace NetJan\ProductServerBundle\Controller;
 
-use NetJan\ProductServerBundle\Entity\Product;
-use NetJan\ProductServerBundle\Form\ProductType;
-use NetJan\ProductServerBundle\Repository\ProductRepository;
 use FOS\RestBundle\Request\ParamFetcher;
-use FOS\RestBundle\Controller\AbstractFOSRestController;
-use FOS\RestBundle\Controller\Annotations as Rest;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
+use NetJan\ProductServerBundle\Entity\Product;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\Validator\Constraints;
+use NetJan\ProductServerBundle\Form\ProductType;
+use FOS\RestBundle\Controller\Annotations as Rest;
+use NetJan\ProductServerBundle\Filter\ProductFilter;
+use FOS\RestBundle\Controller\AbstractFOSRestController;
+use NetJan\ProductServerBundle\Exception\ExceptionInterface;
+use NetJan\ProductServerBundle\Repository\ProductRepository;
+use Symfony\Component\HttpFoundation\Exception\JsonException;
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\ParamConverter;
 
 /**
  * @Route("/products")
@@ -32,13 +35,12 @@ class ProductController extends AbstractFOSRestController
      */
     public function index(ParamFetcher $paramFetcher): Response
     {
-        $filters = [
-            'stock' => $this->normalizeStock($paramFetcher->get('stock')),
-        ];
+        $filter = new ProductFilter();
+        $filter->stock = $this->normalizeStock($paramFetcher->get('stock'));
 
-        $products = $this->productRepository->getList($filters);
+        $products = $this->productRepository->list($filter);
 
-        return $this->handleView($this->view($products));
+        return $this->handleView($this->view($products, Response::HTTP_OK));
     }
 
     /**
@@ -48,113 +50,87 @@ class ProductController extends AbstractFOSRestController
     {
         $product = new Product();
         $form = $this->createForm(ProductType::class, $product);
-        $data = json_decode($request->getContent(), true);
-        $form->submit($data);
-
-        if ($form->isSubmitted() && $form->isValid()) {
-            $result = $this->productRepository->save($product);
-
-            if (false === $result['error']) {
-                return $this->handleView($this->view($product));
-            } else {
-                return $this->handleView($this->view($result['messages']));
-            }
+        try {
+            $form->submit($request->toArray());
+        } catch (JsonException $e) {
+            return $this->handleView($this->view([], Response::HTTP_BAD_REQUEST));
         }
 
-        return $this->handleView($this->view($form));
+        if ($form->isSubmitted() && $form->isValid()) {
+            return $this->save($product);
+        }
+
+        return $this->formErrors($form);
     }
 
     /**
+     * @ParamConverter("product", class="NetJanProductServerBundle:Product")
      * @Rest\Get("/{id}")
      */
-    public function show($id): Response
+    public function show(Product $product): Response
     {
-        $product = $this->getProduct($id);
-
-        return $this->handleView($this->view($product));
+        return $this->handleView($this->view($product, Response::HTTP_OK));
     }
 
     /**
+     * @ParamConverter("product", class="NetJanProductServerBundle:Product")
      * @Rest\Put("/{id}")
      */
-    public function edit($id, Request $request): Response
+    public function edit(Product $product, Request $request): Response
     {
-        $product = $this->getProduct($id);
-
         $form = $this->createForm(ProductType::class, $product);
-        $data = json_decode($request->getContent(), true);
-        $form->submit($data);
+        try {
+            $form->submit($request->toArray());
+        } catch (JsonException $e) {
+            return $this->handleView($this->view([], Response::HTTP_BAD_REQUEST));
+        }
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $result = $this->productRepository->save($product);
-
-            if (false === $result['error']) {
-                return $this->handleView($this->view($product));
-            } else {
-                return $this->handleView($this->view($result['messages']));
-            }
+            return $this->save($product);
         }
 
-        return $this->handleView($this->view($form));
+        return $this->formErrors($form);
     }
 
     /**
+     * @ParamConverter("product", class="NetJanProductServerBundle:Product")
      * @Rest\Delete("/{id}")
      */
-    public function delete($id, Request $request): Response
+    public function delete(Product $product): Response
     {
-        $product = $this->getProduct($id);
-
-        $result = $this->productRepository->remove($product);
-
-        if (false === $result['error']) {
-            return $this->json([], 204);
+        try {
+            $this->productRepository->remove($product);
+        } catch (ExceptionInterface $e) {
+            return $this->handleView($this->view([$e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY));
         }
 
-        return $this->handleView($this->view($result['messages']));
+        return $this->handleView($this->view([], Response::HTTP_NO_CONTENT));
     }
 
     /**
+     * @ParamConverter("product", class="NetJanProductServerBundle:Product")
      * @Rest\Patch("/{id}")
      */
-    public function update($id, Request $request): Response
+    public function update(Product $product, Request $request): Response
     {
-        $product = $this->getProduct($id);
-
         $orginalPoduct = [
             'name' => $product->getName(),
             'amount' => $product->getAmount(),
         ];
-
         $form = $this->createForm(ProductType::class, $product, [
             'fields_required' => false,
         ]);
-        $data = json_decode($request->getContent(), true);
-
-        $form->submit(array_merge($orginalPoduct, $data));
+        try {
+            $form->submit(array_merge($orginalPoduct, $request->toArray()));
+        } catch (JsonException $e) {
+            return $this->handleView($this->view([], Response::HTTP_BAD_REQUEST));
+        }
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $result = $this->productRepository->save($product);
-
-            if (false === $result['error']) {
-                return $this->handleView($this->view($product));
-            } else {
-                return $this->handleView($this->view($result['messages']));
-            }
+            return $this->save($product);
         }
 
-        return $this->handleView($this->view($form));
-    }
-
-    private function getProduct($id): ?Product
-    {
-        $product = $this->productRepository->find($id);
-
-        if (null === $product) {
-            throw new NotFoundHttpException();
-        }
-
-        return $product;
+        return $this->formErrors($form);
     }
 
     private function normalizeStock($stock): ?bool
@@ -168,5 +144,26 @@ class ProductController extends AbstractFOSRestController
         }
 
         return null;
+    }
+
+    private function save(Product $product): Response
+    {
+        try {
+            $this->productRepository->save($product);
+        } catch (ExceptionInterface $e) {
+            return $this->handleView($this->view([$e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY));
+        }
+
+        return $this->handleView($this->view($product, Response::HTTP_OK));
+    }
+
+    private function formErrors(FormInterface $form): Response
+    {
+        $errors = [];
+        foreach ($form->getErrors(true) as $error) {
+            $errors[] = $error->getMessage();
+        }
+
+        return $this->handleView($this->view($errors, Response::HTTP_BAD_REQUEST));
     }
 }

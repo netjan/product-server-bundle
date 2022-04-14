@@ -16,7 +16,7 @@ File: `config/routes.yaml`
 ```
 netjan_product:
     prefix: '/api'
-    resource: "@NetJanProductServerBundle/config/routing.yaml"
+    resource: "@NetJanProductServerBundle/config/routing.xml"
 ```
 
 File: `config/packages/fos_rest.yaml`

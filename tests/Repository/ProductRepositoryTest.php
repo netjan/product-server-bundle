@@ -4,165 +4,214 @@ namespace NetJan\ProductServerBundle\Tests\Repository;
 
 use Doctrine\ORM\Tools\SchemaTool;
 use NetJan\ProductServerBundle\Entity\Product;
+use NetJan\ProductServerBundle\Exception as BundleException;
+use NetJan\ProductServerBundle\Filter\ProductFilter;
+use NetJan\ProductServerBundle\Repository\ProductRepository;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 class ProductRepositoryTest extends KernelTestCase
 {
+    private $manager;
+    private ProductRepository $testRepository;
+
     protected static function getKernelClass(): string
     {
-        require_once __DIR__ . '/../Fixtures/App/src/Kernel.php';
+        require_once \dirname(__DIR__).'/Fixtures/TestApp/src/Kernel.php';
 
-        return 'App\Kernel';
+        return 'TestApp\Kernel';
     }
-
-    /**
-     * @var \Doctrine\ORM\EntityManager
-     */
-    private $entityManager;
 
     protected function setUp(): void
     {
-        $kernel = self::bootKernel();
+        static::bootKernel();
 
-        $this->entityManager = $kernel->getContainer()
+        $container = static::getContainer();
+        $registry = $container->get('doctrine');
+        $this->manager = $registry->getManager();
+
+        $this->configureDatabase();
+
+        $this->testRepository = $this->manager->getRepository(Product::class);
+    }
+
+    public function testCreate(): void
+    {
+        $this->assertInstanceOf(ProductRepository::class, $this->testRepository);
+    }
+
+    /**
+     * @dataProvider validProduct
+     */
+    public function testList(Product $product, string $name, int $amount): void
+    {
+        $filter = new ProductFilter();
+        // $filter->stock
+        $actual = $this->testRepository->list($filter);
+        $actual = count($actual);
+        $expected = 0;
+        $this->assertSame($expected, $actual);
+
+        $this->testRepository->save($product);
+
+        // amount > 5
+        $expected = 0;
+        if (5 < $amount) {
+            $expected = 1;
+        }
+        $actual = $this->testRepository->list($filter);
+        $actual = count($actual);
+        $this->assertSame($expected, $actual);
+
+        // amount > 0
+        $filter->stock = true;
+        $expected = 0;
+        if (0 < $amount) {
+            $expected = 1;
+        }
+        $actual = $this->testRepository->list($filter);
+        $actual = count($actual);
+        $this->assertSame($expected, $actual);
+
+        // amount = 0
+        $filter->stock = false;
+        $expected = 0;
+        if (0 === $amount) {
+            $expected = 1;
+        }
+        $actual = $this->testRepository->list($filter);
+        $actual = count($actual);
+        $this->assertSame($expected, $actual);
+    }
+
+    /**
+     * @dataProvider validProduct
+     */
+    public function testSave(Product $product, string $name, int $amount): void
+    {
+        $this->testRepository->save($product);
+
+        $actual = $product->getId();
+        $expected = null;
+        $this->assertNotSame($expected, $actual);
+
+        /**
+         * @var Product $savedProduct
+         */
+        $savedProduct = $this->testRepository->find($product->getId());
+        $this->assertNotSame($expected, $savedProduct);
+
+        $actual = $product->getId();
+        $expected = $savedProduct->getId();
+        $this->assertSame($expected, $actual);
+
+        $actual = $savedProduct->getName();
+        $this->assertSame($name, $actual);
+
+        $actual = $savedProduct->getAmount();
+        $this->assertSame($amount, $actual);
+    }
+
+    public function testThrowBundleExceptionRepositoryExceptionWhenSave()
+    {
+        $this->expectException(BundleException\RepositoryException::class);
+        $this->expectExceptionMessage('Błąd zapisywania danych!!');
+
+        $product = new Product();
+        $this->testRepository->save($product);
+    }
+
+    public function testThrowBundleExceptionORMExceptionWhenSave()
+    {
+        $this->expectException(BundleException\ORMException::class);
+        $this->expectExceptionMessage('Błąd zapisywania danych!');
+
+        $product = new Product();
+        $entityManager = static::$kernel->getContainer()
             ->get('doctrine')
             ->getManager();
+        $entityManager->close();
+        $this->testRepository->save($product);
+    }
 
+    /**
+     * @dataProvider validProduct
+     */
+    public function testRemove(Product $product): void
+    {
+        $products = $this->testRepository->findAll();
+        $expected = count($products);
+        $this->testRepository->save($product);
+
+        $products = $this->testRepository->findAll();
+        $actual = count($products);
+        $this->assertSame($expected + 1, $actual);
+        $savedId = $this->testRepository->find($product->getId())->getId();
+        $this->assertSame($product->getId(), $savedId);
+
+        $this->testRepository->remove($product);
+        $products = $this->testRepository->findAll();
+        $actual = count($products);
+        $this->assertSame($expected, $actual);
+        $actual = $this->testRepository->find($savedId);
+        $this->assertNull($actual);
+    }
+
+    /**
+     * @dataProvider validProduct
+     */
+    public function testThrowBundleExceptionRepositoryExceptionWhenRemove(Product $product)
+    {
+        $this->expectException(BundleException\RepositoryException::class);
+        $this->expectExceptionMessage('Błąd zapisywania danych!!');
+
+        $this->testRepository->save($product);
+        $cloneProduct = clone $product;
+        $this->testRepository->remove($cloneProduct);
+    }
+
+    public function testThrowBundleExceptionORMExceptionWhenRemove()
+    {
+        $this->expectException(BundleException\ORMException::class);
+        $this->expectExceptionMessage('Błąd zapisywania danych!');
+
+        $product = new Product();
+        $entityManager = static::$kernel->getContainer()
+            ->get('doctrine')
+            ->getManager();
+        $entityManager->close();
+        $this->testRepository->remove($product);
+    }
+
+    protected function configureDatabase()
+    {
         $schema = [
-            $this->entityManager->getClassMetadata(Product::class),
+            $this->manager->getClassMetadata(Product::class),
         ];
 
-        $schemaTool = new SchemaTool($this->entityManager);
+        $schemaTool = new SchemaTool($this->manager);
         $schemaTool->dropSchema($schema);
         $schemaTool->createSchema($schema);
     }
 
-    public function testEmptyBase()
+    public function validProduct(): \Generator
     {
-        $productRepository = $this->entityManager->getRepository(Product::class);
-        $list = $productRepository->getList();
+        $products = [
+            [ 'Product name', 1 ],
+            [ 'Product name', 0 ],
+            [ 'Product name', 6 ],
+        ];
 
-        $this->assertSame([], $list);
-
-        $list = $productRepository->getList([
-            'stock' => true,
-        ]);
-
-        $this->assertSame([], $list);
-
-        $list = $productRepository->getList([
-            'stock' => false,
-        ]);
-
-        $this->assertSame([], $list);
+        foreach ($products as $item) {
+            yield [$this->getProduct($item[0], $item[1]), $item[0], $item[1]];
+        }
     }
 
-    public function testSaveEmpty()
+    public function getProduct(string $name, int $amount): Product
     {
         $product = new Product();
-        $productRepository = $this->entityManager->getRepository(Product::class);
-        $result = $productRepository->save($product);
-        $this->assertSame(true, $result['error']);
-    }
+        $product->setName($name);
+        $product->setAmount($amount);
 
-    public function testSave()
-    {
-        $product = new Product();
-        $productRepository = $this->entityManager->getRepository(Product::class);
-
-        $product->setName('name');
-        $product->setAmount(1);
-        $result = $productRepository->save($product);
-        $this->assertSame(false, $result['error']);
-
-        // amount > 0
-        $list = $productRepository->getList([
-            'stock' => true,
-        ]);
-        $this->assertSame(1, count($list));
-
-        $product = clone $product;
-        $product->setAmount(0);
-        $result = $productRepository->save($product);
-        $this->assertSame(false, $result['error']);
-
-        // amount = 0
-        $list = $productRepository->getList([
-            'stock' => false,
-        ]);
-        $this->assertSame(1, count($list));
-
-        $product = clone $product;
-        $product->setAmount(6);
-        $result = $productRepository->save($product);
-        $this->assertSame(false, $result['error']);
-
-        // amount > 5
-        $list = $productRepository->getList();
-        $this->assertSame(1, count($list));
-
-        // amount > 0
-        $list = $productRepository->getList([
-            'stock' => true,
-        ]);
-        $this->assertSame(2, count($list));
-
-        $product = clone $product;
-        $product->setAmount(5);
-        $result = $productRepository->save($product);
-        $this->assertSame(false, $result['error']);
-
-        // amount > 5
-        $list = $productRepository->getList();
-        $this->assertSame(1, count($list));
-
-        // amount > 0
-        $list = $productRepository->getList([
-            'stock' => true,
-        ]);
-        $this->assertSame(3, count($list));
-
-        // amount = 0
-        $list = $productRepository->getList([
-            'stock' => false,
-        ]);
-        $this->assertSame(1, count($list));
-
-        // total records
-        $list = $productRepository->findAll();
-        $this->assertSame(4, count($list));
-    }
-
-    public function testSaveAndRemove()
-    {
-        $product = new Product();
-        $productRepository = $this->entityManager->getRepository(Product::class);
-
-        $product->setName('name');
-        $product->setAmount(1);
-        $result = $productRepository->save($product);
-        $this->assertSame(false, $result['error']);
-
-        $list = $productRepository->getList([
-            'stock' => true,
-        ]);
-        $this->assertSame(1, count($list));
-
-        $result = $productRepository->remove($product);
-        $this->assertSame(false, $result['error']);
-
-        $list = $productRepository->getList([
-            'stock' => true,
-        ]);
-        $this->assertSame(0, count($list));
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-
-        // doing this is recommended to avoid memory leaks
-        $this->entityManager->close();
-        $this->entityManager = null;
+        return $product;
     }
 }

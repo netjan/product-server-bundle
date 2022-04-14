@@ -12,4 +12,11 @@ class NetJanProductServerBundleTest extends TestCase
     {
         $this->assertInstanceOf(Bundle::class, new NetJanProductServerBundle());
     }
+
+    public function testGetPath()
+    {
+        $bundle = new NetJanProductServerBundle();
+        $expected = \dirname(__DIR__);
+        $this->assertSame($expected, $bundle->getPath());
+    }
 }
